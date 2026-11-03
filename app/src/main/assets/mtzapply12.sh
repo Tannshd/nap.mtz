@@ -10,9 +10,11 @@
 
 MTZ="/sdcard/MIUI/theme/MtzApply.mtz"
 DRY=0
+AUTO=0
 for a in "$@"; do
   case "$a" in
     --dry) DRY=1 ;;
+    --auto) AUTO=1 ;;
     *) MTZ="$a" ;;
   esac
 done
@@ -92,6 +94,33 @@ am start --user 0 -a android.intent.action.VIEW \
   -d "ViewLocalResource://view.local.resource#$ID" \
   -n $TM/.module.detail.view.ThemeDetailActivity \
   --es REQUEST_RESOURCE_CODE theme 2>&1 | tee -a "$LOG"
+
+# 4) tu dong bam "Ap dung" bang uiautomator + input tap (quyen shell)
+auto_tap() {
+  UI=/data/local/tmp/mtz_ui.xml
+  TAPS=0; i=0
+  while [ $i -lt 10 ] && [ $TAPS -lt 3 ]; do
+    i=$((i+1)); sleep 2
+    rm -f "$UI"
+    uiautomator dump "$UI" >/dev/null 2>&1
+    if [ ! -s "$UI" ]; then say "auto: uiautomator dump khong chay duoc"; return 1; fi
+    say "auto[$i] chu tren man hinh: $(grep -o 'text="[^"]\+"' "$UI" | head -n 12 | tr '\n' ' ')"
+    NODE="$(grep -o '<node [^>]*>' "$UI" | grep -E 'text="(Áp dụng|Áp dụng ngay|Apply|Apply now|应用|立即应用|Ap dung)"' | head -n 1)"
+    if [ -z "$NODE" ]; then
+      [ $TAPS -gt 0 ] && break
+      continue
+    fi
+    B="$(echo "$NODE" | sed -n 's/.*bounds="\[\([0-9]*\),\([0-9]*\)\]\[\([0-9]*\),\([0-9]*\)\]".*/\1 \2 \3 \4/p')"
+    set -- $B
+    [ -n "$4" ] || { say "auto: khong doc duoc bounds"; return 1; }
+    X=$(( ($1 + $3) / 2 )); Y=$(( ($2 + $4) / 2 ))
+    say "auto: bam Ap dung tai $X,$Y"
+    input tap $X $Y
+    TAPS=$((TAPS+1))
+  done
+  say "auto: xong ($TAPS lan bam)"
+}
+[ "$AUTO" = "1" ] && auto_tap
 
 sleep 3
 say "---- logcat (loi lien quan Theme Manager) ----"

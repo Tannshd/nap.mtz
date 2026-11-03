@@ -1,6 +1,11 @@
 package io.mtzapply12;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.database.Cursor;
+import android.net.Uri;
+import android.provider.OpenableColumns;
+import android.widget.CheckBox;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
@@ -24,6 +29,10 @@ public class MainActivity extends Activity {
     private EditText pathEdit;
     private TextView out;
     private Button run;
+    private CheckBox autoBox;
+    private Uri pickedUri;
+    private static final int REQ_PICK = 77;
+    private static final String PICKED_REMOTE = "/data/local/tmp/picked.mtz";
 
     private final Shizuku.OnRequestPermissionResultListener permListener =
             (requestCode, grantResult) -> {
@@ -51,6 +60,21 @@ public class MainActivity extends Activity {
         pathEdit.setSingleLine(true);
         root.addView(pathEdit);
 
+        Button pick = new Button(this);
+        pick.setText("Chọn file .mtz");
+        pick.setOnClickListener(v -> {
+            Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.setType("*/*");
+            startActivityForResult(i, REQ_PICK);
+        });
+        root.addView(pick);
+
+        autoBox = new CheckBox(this);
+        autoBox.setText("Tự động bấm \"Áp dụng\"");
+        autoBox.setChecked(true);
+        root.addView(autoBox);
+
         run = new Button(this);
         run.setText("Áp theme (qua Shizuku)");
         run.setOnClickListener(v -> onRun());
@@ -66,6 +90,22 @@ public class MainActivity extends Activity {
 
         setContentView(root);
         Shizuku.addRequestPermissionResultListener(permListener);
+    }
+
+    @Override
+    protected void onActivityResult(int req, int res, Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req == REQ_PICK && res == RESULT_OK && data != null && data.getData() != null) {
+            pickedUri = data.getData();
+            String name = "file đã chọn";
+            try (Cursor c = getContentResolver().query(pickedUri, null, null, null, null)) {
+                if (c != null && c.moveToFirst()) {
+                    int idx = c.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if (idx >= 0) name = c.getString(idx);
+                }
+            } catch (Throwable ignored) { }
+            pathEdit.setText("[đã chọn] " + name);
+        }
     }
 
     @Override
@@ -98,7 +138,10 @@ public class MainActivity extends Activity {
 
     private void runScript() {
         run.setEnabled(false);
-        final String path = pathEdit.getText().toString().trim();
+        String typed = pathEdit.getText().toString().trim();
+        final boolean usePicked = pickedUri != null && typed.startsWith("[đã chọn]");
+        final String path = usePicked ? PICKED_REMOTE : typed;
+        final boolean auto = autoBox.isChecked();
         out.setText("");
         new Thread(() -> {
             try {
@@ -110,9 +153,23 @@ public class MainActivity extends Activity {
                 os.close();
                 w.waitFor();
 
+                if (usePicked) {
+                    log("Đang chép file đã chọn...");
+                    Process cp = newProcess(new String[]{"sh", "-c", "cat > " + PICKED_REMOTE});
+                    OutputStream co = cp.getOutputStream();
+                    try (InputStream ci = getContentResolver().openInputStream(pickedUri)) {
+                        byte[] buf = new byte[65536];
+                        int n;
+                        while ((n = ci.read(buf)) > 0) co.write(buf, 0, n);
+                    }
+                    co.close();
+                    cp.waitFor();
+                }
+
                 // 2) chạy script, in kết quả ra màn hình
                 Process p = newProcess(new String[]{"sh", "-c",
-                        "sh " + REMOTE_SCRIPT + " '" + path.replace("'", "'\\''") + "' 2>&1"});
+                        "sh " + REMOTE_SCRIPT + " '" + path.replace("'", "'\\''") + "'"
+                        + (auto ? " --auto" : "") + " 2>&1"});
                 BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
                 String line;
                 while ((line = r.readLine()) != null) log(line);
