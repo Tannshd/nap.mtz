@@ -6,6 +6,10 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.provider.OpenableColumns;
 import android.widget.CheckBox;
+import android.widget.Toast;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
@@ -79,6 +83,15 @@ public class MainActivity extends Activity {
         run.setText("Áp theme (qua Shizuku)");
         run.setOnClickListener(v -> onRun());
         root.addView(run);
+
+        Button copy = new Button(this);
+        copy.setText("Chép log");
+        copy.setOnClickListener(v -> {
+            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            cm.setPrimaryClip(ClipData.newPlainText("log", out.getText()));
+            Toast.makeText(this, "Đã chép log", Toast.LENGTH_SHORT).show();
+        });
+        root.addView(copy);
 
         out = new TextView(this);
         out.setTextIsSelectable(true);

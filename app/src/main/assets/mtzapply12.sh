@@ -86,7 +86,11 @@ JSON
 fi
 chmod a+r "$MRM" 2>/dev/null
 say "da ghi $MRM:"
-cat "$MRM" >> "$LOG"; echo >> "$LOG"
+say "MRM mau: $(head -c 600 "$TEMPLATE" 2>/dev/null)"
+say "MRM moi: $(head -c 600 "$MRM")"
+say "meta/: $(ls "$META" 2>/dev/null | tr '\n' ' ')"
+say "content/: $(ls "$CONTENT" 2>/dev/null | tr '\n' ' ')"
+say "trong content/$ID: $(ls "$CDIR" | head -n 15 | tr '\n' ' ')"
 
 # 3) mo trang chi tiet theme
 logcat -c 2>/dev/null
@@ -96,7 +100,11 @@ am start --user 0 -a android.intent.action.VIEW \
   --es REQUEST_RESOURCE_CODE theme 2>&1 | tee -a "$LOG"
 
 # 4) tu dong bam "Ap dung" bang uiautomator + input tap (quyen shell)
+top_activity() {
+  say "top: $(dumpsys activity activities 2>/dev/null | grep -E 'topResumedActivity|mResumedActivity' | head -n 2 | tr -s ' ')"
+}
 auto_tap() {
+  sleep 2; top_activity
   UI=/data/local/tmp/mtz_ui.xml
   TAPS=0; i=0
   while [ $i -lt 10 ] && [ $TAPS -lt 3 ]; do
@@ -105,6 +113,10 @@ auto_tap() {
     uiautomator dump "$UI" >/dev/null 2>&1
     if [ ! -s "$UI" ]; then say "auto: uiautomator dump khong chay duoc"; return 1; fi
     say "auto[$i] chu tren man hinh: $(grep -o 'text="[^"]\+"' "$UI" | head -n 12 | tr '\n' ' ')"
+    if [ $i -le 3 ]; then
+      say "auto[$i] pkg: $(grep -o 'package="[^"]*"' "$UI" | sort | uniq -c | tr -s ' ' | tr '\n' ' ') nodes=$(grep -o '<node ' "$UI" | wc -l) desc: $(grep -o 'content-desc="[^"]\+"' "$UI" | head -n 8 | tr '\n' ' ')"
+      cp "$UI" /sdcard/mtzapply12_ui.xml 2>/dev/null
+    fi
     NODE="$(grep -o '<node [^>]*>' "$UI" | grep -E 'text="(Áp dụng|Áp dụng ngay|Apply|Apply now|应用|立即应用|Ap dung)"' | head -n 1)"
     if [ -z "$NODE" ]; then
       [ $TAPS -gt 0 ] && break
