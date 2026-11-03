@@ -1,0 +1,26 @@
+name: Build APK
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build
+        run: gradle :app:assembleRelease --no-daemon -PbuildNum=${{ github.run_number }}
+      - name: Đổi tên APK theo số lần build
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/*.apk dist/MtzApply-12-build${{ github.run_number }}.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MtzApply-12-build${{ github.run_number }}
+          path: dist/*.apk

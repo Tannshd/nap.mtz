@@ -1,0 +1,25 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'io.mtzapply12'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'io.mtzapply12'
+        minSdk 26
+        targetSdk 34
+        versionCode (project.findProperty('buildNum') ?: '12').toInteger()
+        versionName "12." + (project.findProperty('buildNum') ?: '0')
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.debug }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'dev.rikka.shizuku:api:13.1.5'
+    implementation 'dev.rikka.shizuku:provider:13.1.5'
+}
