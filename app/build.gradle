@@ -1,5 +1,7 @@
 plugins { id 'com.android.application' }
 
+def buildNum = (project.findProperty('buildNum') ?: '0') as String
+
 android {
     namespace 'io.mtzapply12'
     compileSdk 34
@@ -7,8 +9,8 @@ android {
         applicationId 'io.mtzapply12'
         minSdk 26
         targetSdk 34
-        versionCode (project.findProperty('buildNum') ?: '12').toInteger()
-        versionName "12." + (project.findProperty('buildNum') ?: '0')
+        versionCode = 1000 + Integer.parseInt(buildNum)
+        versionName = "12." + buildNum
     }
     buildTypes {
         release { minifyEnabled false; signingConfig signingConfigs.debug }
